@@ -1,6 +1,7 @@
 (library
    (name Rely)
    (public_name rely.lib)
+   (preprocess (pps bisect_ppx))
    (libraries pastel.lib file-context-printer.lib unix junit re)
 )
 (copy_files# ../../shared-src/common/*)
@@ -8,5 +9,4 @@
 ; implicit dependency on Pastel which Console does not want. Common should
 ; ideally be split up into sub directories/packages which can be more precisely
 ; consumed
-(copy_files# ../../shared-src/objectPrinter/*)
 (include_subdirs unqualified)

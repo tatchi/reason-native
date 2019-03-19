@@ -22,10 +22,12 @@
   "scripts": {
     "bootstrap": "esy x bash -cx ./bootstrap.cmd",
     "all": "./scripts/run-all.sh",
-    "test": "esy x bash -cx ./scripts/test.cmd"
+    "test": "esy x bash -cx ./scripts/test.cmd",
+    "coverage": "esy bisect-ppx-report -I '#{self.target_dir}/default/' -html coverage/ bisect*.out -coveralls coverage.json -ignore-missing-files -verbose"
   },
   "dependencies": {
     "@opam/dune": "*",
+    "@opam/bisect_ppx": "*",
     "@esy-ocaml/reason": "*",
     "refmterr": "*",
     "ocaml": "^4.2.0",
@@ -37,5 +39,10 @@
     "@opam/merlin": "*",
     "ocaml": "~4.6.0",
     "@esy-ocaml/reason": "3.3.3"
+  },
+  "resolutions": {
+    "@opam/ocaml-migrate-parsetree": "ocaml-ppx/ocaml-migrate-parsetree:ocaml-migrate-parsetree.opam#a5be5e1b94f02c667ab354c2e6b55baedeb30187",
+    "@opam/ppxlib": "ocaml-ppx/ppxlib:ppxlib.opam#3bdccbb09b94acdf1f29e3cf57a263aea82e72fa"
   }
 }
+
