@@ -9,6 +9,56 @@ open Types_t;
 open Index;
 open Helpers;
 
+/**
+ * Build systems like Dune provide cursor reset '\r' to show progress
+ * indicators. If we wait for the newline, then we won't show any progress
+ * indicators until the entire job is done.  But we can't just flush at the
+ * first sign of a newline `\r`, because windows might pass us "\r\n" as the
+ * newline depending how we opened the input channel. We'll make it more robust
+ * even if our input channel is set to that mode that normalizes "\r\n" into
+ * "\n" for us.
+ */
+let maxBufferSize = 10000;
+let streamSegments = (onFlushable, onLine) => {
+  let len = {contents: 0};
+  let bytes = Bytes.make(maxBufferSize, Char.chr(0));
+  try (
+    while (true) {
+      if (len.contents === maxBufferSize) {
+        onFlushable(Bytes.sub_string(bytes, 0, len.contents));
+        len.contents = 0;
+      } else {
+        let nextCh = input_char(stdin);
+        let prevChar =
+          len.contents === 0 ? nextCh : Bytes.get(bytes, len.contents - 1);
+        switch (prevChar, nextCh) {
+        | ('\r', '\n')
+        | (_, '\n') =>
+          onLine(Bytes.sub_string(bytes, 0, len.contents));
+          len.contents = 0;
+        | ('\r', next) =>
+          /* \r followed by not newline: Flush that segment including \r */
+          onFlushable(Bytes.sub_string(bytes, 0, len.contents) ++ "\r");
+          /* Take the one character */
+          Bytes.set(bytes, 0, next);
+          len.contents = 1;
+        /* Most terminal escape codes are of this form. Let this be a flushable
+         * unit. ESC[K resets cursor position and clears the line */
+        | (_, '\r' as next)
+        /* If \r then wait and see what the next one is before flushing. */
+        | (_, next) =>
+          Bytes.set(bytes, len.contents, next);
+          len.contents = len.contents + 1;
+        };
+      };
+    }
+  ) {
+  | End_of_file =>
+    onLine(Bytes.sub_string(bytes, 0, len.contents));
+    close_in(stdin);
+  };
+};
+
 let parseFromStdin =
     (
       ~refmttypePath,
@@ -19,6 +69,10 @@ let parseFromStdin =
   let reverseErrBuffer = {contents: []};
   let prettyPrintParsedResult =
     TerminalReporter.prettyPrintParsedResult(~refmttypePath, ~rawOutput);
+  let forEachFlushable = s => {
+    output_string(stdout, s);
+    flush(stdout);
+  };
   let forEachLine = line =>
     switch (
       reverseErrBuffer.contents,
@@ -103,7 +157,7 @@ let parseFromStdin =
     };
   try (
     {
-      line_stream_of_channel(stdin) |> Stream.iter(forEachLine);
+      streamSegments(forEachFlushable, forEachLine);
       /* might have accumulated a few more lines */
       if (reverseErrBuffer.contents !== []) {
         let bufferText = revBufferToStr(reverseErrBuffer.contents);

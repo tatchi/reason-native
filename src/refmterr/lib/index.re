@@ -277,13 +277,6 @@ let parse = (~customErrorParsers, err) => {
   };
 };
 
-let line_stream_of_channel = channel =>
-  Stream.from(_ =>
-    try (Some(input_line(channel))) {
-    | End_of_file => None
-    }
-  );
-
 /* entry point, for convenience purposes for now. Theoretically the parser and
       the reporters are decoupled.
       What about errors of the form:
